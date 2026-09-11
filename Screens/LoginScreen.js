@@ -81,11 +81,17 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.orText}>O ingresar con</Text>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.socialBtn}>
+          <TouchableOpacity
+            style={styles.socialBtn}
+            onPress={() => navigation.navigate('AdminPanel')}
+          >
             <Ionicons name="logo-google" size={18} color={colors.textDark} />
             <Text style={styles.socialText}>Google</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.socialBtn}>
+          <TouchableOpacity
+            style={styles.socialBtn}
+            onPress={() => navigation.navigate('AdminPanel')}
+          >
             <Ionicons name="logo-apple" size={18} color={colors.textDark} />
             <Text style={styles.socialText}>Apple</Text>
           </TouchableOpacity>
