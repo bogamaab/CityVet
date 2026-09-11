@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Switch,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
 
@@ -95,6 +96,14 @@ export default function VetAccountScreen({ navigation }) {
             thumbColor={colors.white}
           />
         </View>
+
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+          <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <BottomTabBar
@@ -140,4 +149,22 @@ const styles = StyleSheet.create({
   prefTextWrap: { flex: 1, paddingRight: 12 },
   prefTitle: { fontSize: 14, fontWeight: '600', color: colors.textDark, marginBottom: 2 },
   prefSubtitle: { fontSize: 12, color: colors.textGray },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  logoutBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.danger,
+  },
 });

@@ -8,7 +8,7 @@ const CLIENT_TABS = [
   { key: 'Inicio', label: 'Inicio', icon: 'home-outline', route: 'ClientDashboard' },
   { key: 'Mascotas', label: 'Mascotas', icon: 'paw-outline', route: 'RegisterPet' },
   { key: 'Citas', label: 'Citas', icon: 'calendar-outline', route: 'MyAppointments' },
-  { key: 'Perfil', label: 'Perfil', icon: 'person-outline', route: 'Login' },
+  { key: 'Perfil', label: 'Perfil', icon: 'person-outline', route: 'ClientProfile' },
 ];
 
 const proximas = [

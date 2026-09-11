@@ -14,6 +14,7 @@ import AdminPanelScreen from './Screens/AdminPanelScreen';
 import CreateAccountScreen from './Screens/CreateAccountScreen';
 import VetAccountScreen from './Screens/VetAccountScreen';
 import PetProfileScreen from './Screens/PetProfileScreen';
+import ClientProfileScreen from './Screens/ClientProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +33,7 @@ export default function App() {
         <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
         <Stack.Screen name="VetAccount" component={VetAccountScreen} />
         <Stack.Screen name="PetProfile" component={PetProfileScreen} />
+        <Stack.Screen name="ClientProfile" component={ClientProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
