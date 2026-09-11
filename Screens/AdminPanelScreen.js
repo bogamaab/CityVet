@@ -50,7 +50,9 @@ export default function AdminPanelScreen({ navigation }) {
 
   const handleTabPress = (tabKey) => {
     setActiveTab(tabKey);
-    if (tabKey === 'Config') {
+    if (tabKey === 'Especialistas') {
+      navigation.navigate('AdminSpecialists');
+    } else if (tabKey === 'Config') {
       Alert.alert(
         'Configuración de Administrador',
         '¿Deseas cerrar sesión de administrador y regresar al login?',
