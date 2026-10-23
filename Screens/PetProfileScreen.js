@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  ActivityIndicator, Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { buscarPacientes, obtenerPaciente } from '../services/vetService';
 
 const VET_TABS = [
   { key: 'Control', label: 'Control', icon: 'grid-outline', route: 'VetPanel' },
@@ -10,14 +14,36 @@ const VET_TABS = [
   { key: 'Perfil', label: 'Mi Perfil', icon: 'person-outline', route: 'VetAccount' },
 ];
 
-const vacunas = [
-  { id: '1', nombre: 'Vacuna Antialérgica', fecha: 'Ene 2024', estado: 'Al día', ok: true },
-  { id: '2', nombre: 'Vacuna de la Rabia', fecha: 'Ene 2024', estado: 'Al día', ok: true },
-  { id: '3', nombre: 'Desparasitante', fecha: 'Oct 2024', estado: 'Pendiente', ok: false },
-];
-
 export default function PetProfileScreen({ navigation }) {
   const [busqueda, setBusqueda] = useState('');
+  const [pacientes, setPacientes] = useState([]);
+  const [paciente, setPaciente] = useState(null);
+  const [cargando, setCargando] = useState(true);
+
+  const seleccionar = async (id) => {
+    try {
+      setPaciente(await obtenerPaciente(id));
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // Busca (con 300 ms de espera) y selecciona automáticamente el primer resultado
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        setCargando(true);
+        const lista = await buscarPacientes(busqueda);
+        setPacientes(lista);
+        setPaciente(lista.length ? await obtenerPaciente(lista[0].id) : null);
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      } finally {
+        setCargando(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [busqueda]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -25,88 +51,135 @@ export default function PetProfileScreen({ navigation }) {
         <Ionicons name="search-outline" size={18} color={colors.textGray} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar paciente..."
+          placeholder="Buscar paciente o tutor..."
           placeholderTextColor={colors.textLightGray}
           value={busqueda}
           onChangeText={setBusqueda}
         />
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipsScroll}
+        contentContainerStyle={styles.chipsRow}
+      >
+        {pacientes.map((p) => {
+          const active = paciente?.id === p.id;
+          return (
+            <TouchableOpacity
+              key={p.id}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => seleccionar(p.id)}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.nombre}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.petCard}>
-          <View style={styles.petHeader}>
-            <View style={styles.avatar} />
-            <View style={{ flex: 1 }}>
-              <View style={styles.petNameRow}>
-                <Text style={styles.petName}>Coco</Text>
-                <View style={styles.speciesBadge}>
-                  <Text style={styles.speciesBadgeText}>Felino</Text>
+        {cargando && <ActivityIndicator color={colors.primary} />}
+        {!cargando && !paciente && (
+          <Text style={styles.medDose}>No se encontraron pacientes.</Text>
+        )}
+
+        {paciente && (
+          <>
+            <View style={styles.petCard}>
+              <View style={styles.petHeader}>
+                <View style={styles.avatar} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.petNameRow}>
+                    <Text style={styles.petName}>{paciente.nombre}</Text>
+                    <View style={styles.speciesBadge}>
+                      <Text style={styles.speciesBadgeText}>{paciente.especieTexto}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.petBreed}>{`${paciente.sexo} · ${paciente.raza}`}</Text>
                 </View>
               </View>
-              <Text style={styles.petBreed}>Macho (Castrado) · Maine Coon</Text>
-            </View>
-          </View>
 
-          <View style={styles.petStatsRow}>
-            <View>
-              <Text style={styles.statLabel}>Edad</Text>
-              <Text style={styles.statValue}>3 años y 2 meses</Text>
-            </View>
-            <View>
-              <Text style={styles.statLabel}>Chip</Text>
-              <Text style={styles.statValue}>900223004523118</Text>
-            </View>
-          </View>
-
-          <View style={styles.estadoRow}>
-            <Text style={styles.statLabel}>Estado general</Text>
-            <View style={styles.estadoBadge}>
-              <Text style={styles.estadoBadgeText}>Estable</Text>
-            </View>
-          </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>TUTOR RESPONSABLE</Text>
-        <View style={styles.card}>
-          <Text style={styles.tutorName}>Sofia Martínez</Text>
-          <Text style={styles.tutorContact}>+34 600 123 456</Text>
-          <Text style={styles.tutorContact}>sofia.martinez@gmail.com</Text>
-        </View>
-
-        <Text style={styles.sectionTitle}>MEDICACIÓN ACTIVA</Text>
-        <View style={styles.card}>
-          <Text style={styles.medName}>Condroprotector Articular</Text>
-          <Text style={styles.medDose}>1 comprimido / 24h · Diario permanente</Text>
-        </View>
-
-        <Text style={styles.sectionTitle}>VACUNAS Y DESPARASITACIÓN</Text>
-        <View style={styles.card}>
-          {vacunas.map((v, i) => (
-            <View key={v.id} style={[styles.vacunaRow, i !== vacunas.length - 1 && styles.vacunaRowBorder]}>
-              <View>
-                <Text style={styles.vacunaName}>{v.nombre}</Text>
-                <Text style={styles.vacunaFecha}>{v.fecha}</Text>
+              <View style={styles.petStatsRow}>
+                <View>
+                  <Text style={styles.statLabel}>Edad</Text>
+                  <Text style={styles.statValue}>{paciente.edad}</Text>
+                </View>
+                <View>
+                  <Text style={styles.statLabel}>Chip</Text>
+                  <Text style={styles.statValue}>{paciente.chip}</Text>
+                </View>
               </View>
-              <View style={[styles.vacunaBadge, v.ok ? styles.badgeOk : styles.badgePending]}>
-                <Text style={[styles.vacunaBadgeText, v.ok ? styles.badgeTextOk : styles.badgeTextPending]}>
-                  {v.estado}
-                </Text>
+
+              <View style={styles.estadoRow}>
+                <Text style={styles.statLabel}>Estado general</Text>
+                <View style={styles.estadoBadge}>
+                  <Text style={styles.estadoBadgeText}>{paciente.estado}</Text>
+                </View>
               </View>
             </View>
-          ))}
-        </View>
 
-        <Text style={styles.sectionTitle}>HISTORIAL CLÍNICO</Text>
-        <View style={styles.card}>
-          <View style={styles.historialHeader}>
-            <Text style={styles.historialFecha}>15 Sep 2024</Text>
-            <Text style={styles.historialDoctor}>Dra. Sofia Martínez</Text>
-          </View>
-          <Text style={styles.historialTitle}>Control General</Text>
-          <Text style={styles.historialDesc}>
-            Paciente acude para revisión de control. Estado general bueno, mucosas sanas, pelaje brillante. Se recomienda mantener dieta rica en fibra.
-          </Text>
-        </View>
+            <Text style={styles.sectionTitle}>TUTOR RESPONSABLE</Text>
+            <View style={styles.card}>
+              <Text style={styles.tutorName}>{paciente.tutor.nombre}</Text>
+              <Text style={styles.tutorContact}>{paciente.tutor.telefono}</Text>
+              <Text style={styles.tutorContact}>{paciente.tutor.correo}</Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>MEDICACIÓN ACTIVA</Text>
+            <View style={styles.card}>
+              {paciente.medicacion.length === 0 && (
+                <Text style={styles.medDose}>Sin medicación activa</Text>
+              )}
+              {paciente.medicacion.map((m) => (
+                <View key={m.id}>
+                  <Text style={styles.medName}>{m.nombre}</Text>
+                  <Text style={styles.medDose}>{m.dosis}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.sectionTitle}>VACUNAS Y DESPARASITACIÓN</Text>
+            <View style={styles.card}>
+              {paciente.vacunas.length === 0 && (
+                <Text style={styles.medDose}>Sin vacunas registradas</Text>
+              )}
+              {paciente.vacunas.map((v, i) => (
+                <View
+                  key={v.id}
+                  style={[styles.vacunaRow, i !== paciente.vacunas.length - 1 && styles.vacunaRowBorder]}
+                >
+                  <View>
+                    <Text style={styles.vacunaName}>{v.nombre}</Text>
+                    <Text style={styles.vacunaFecha}>{v.fecha}</Text>
+                  </View>
+                  <View style={[styles.vacunaBadge, v.ok ? styles.badgeOk : styles.badgePending]}>
+                    <Text style={[styles.vacunaBadgeText, v.ok ? styles.badgeTextOk : styles.badgeTextPending]}>
+                      {v.estado}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.sectionTitle}>HISTORIAL CLÍNICO</Text>
+            <View style={styles.card}>
+              {paciente.historial.length === 0 && (
+                <Text style={styles.medDose}>Sin registros clínicos</Text>
+              )}
+              {paciente.historial.map((h) => (
+                <View key={h.id}>
+                  <View style={styles.historialHeader}>
+                    <Text style={styles.historialFecha}>{h.fecha}</Text>
+                    <Text style={styles.historialDoctor}>{h.doctor}</Text>
+                  </View>
+                  <Text style={styles.historialTitle}>{h.titulo}</Text>
+                  <Text style={styles.historialDesc}>{h.descripcion}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <BottomTabBar
@@ -126,6 +199,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 20, marginTop: 14, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10,
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.textDark },
+  chipsScroll: { flexGrow: 0, maxHeight: 44, marginBottom: 4 },
+  chipsRow: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primaryLight },
+  chipActive: { backgroundColor: colors.primary },
+  chipText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
+  chipTextActive: { color: colors.white },
   container: { padding: 20, paddingTop: 8 },
   petCard: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 16, marginBottom: 20 },
   petHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },

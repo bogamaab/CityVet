@@ -1,7 +1,13 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  ActivityIndicator, Alert,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { useAuth } from '../context/AuthContext';
+import { obtenerAgenda } from '../services/vetService';
 
 const VET_TABS = [
   { key: 'Control', label: 'Control', icon: 'grid-outline', route: 'VetPanel' },
@@ -9,33 +15,58 @@ const VET_TABS = [
   { key: 'Perfil', label: 'Mi Perfil', icon: 'person-outline', route: 'VetAccount' },
 ];
 
-const agenda = [
-  { id: '1', hora: '09:00', horaFin: '09:30', mascota: 'Toby', detalle: 'Criollo • Peluquería', color: colors.primary },
-  { id: '2', hora: '10:00', horaFin: '10:30', mascota: 'Max', detalle: 'Golden Retriever • Consulta Médica', color: colors.primary, selected: true },
-  { id: '3', hora: '11:30', horaFin: '12:00', mascota: 'Luna', detalle: 'Gato Persa • Cirugía', color: colors.danger },
-];
-
 export default function VetPanelScreen({ navigation }) {
+  const { usuario } = useAuth();
+  const [agenda, setAgenda] = useState([]);
+  const [titulo, setTitulo] = useState('');
+  const [cargando, setCargando] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      const cargar = async () => {
+        try {
+          setCargando(true);
+          const respuesta = await obtenerAgenda();
+          setAgenda(respuesta.citas);
+          setTitulo(respuesta.titulo);
+        } catch (error) {
+          Alert.alert('Error', error.message);
+        } finally {
+          setCargando(false);
+        }
+      };
+      cargar();
+    }, [])
+  );
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerSmall}>Agenda del Día</Text>
-            <Text style={styles.headerTitle}>Dr. Fernando Ruiz</Text>
+            <Text style={styles.headerTitle}>{usuario?.nombre}</Text>
           </View>
           <TouchableOpacity>
             <Text style={styles.weekLink}>Semana</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.dateText}>Jueves, 24 de Octubre</Text>
+        <Text style={styles.dateText}>{titulo}</Text>
 
         <View style={{ marginTop: 16 }}>
+          {cargando && <ActivityIndicator color={colors.primary} />}
+          {!cargando && agenda.length === 0 && (
+            <Text style={styles.agendaDetalle}>No tienes citas programadas.</Text>
+          )}
+
           {agenda.map((item) => (
             <View
               key={item.id}
-              style={[styles.agendaCard, { borderLeftColor: item.color }, item.selected && styles.agendaCardSelected]}
+              style={[
+                styles.agendaCard,
+                { borderLeftColor: item.critico ? colors.danger : colors.primary },
+              ]}
             >
               <View>
                 <Text style={styles.agendaHora}>{item.hora}</Text>
@@ -52,7 +83,7 @@ export default function VetPanelScreen({ navigation }) {
 
       <BottomTabBar
         tabs={VET_TABS}
-        activeKey="Agenda"
+        activeKey="Control"
         onPress={(key) => navigation.navigate(VET_TABS.find((t) => t.key === key).route)}
       />
     </SafeAreaView>
@@ -72,7 +103,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4, padding: 14, marginBottom: 12, gap: 16,
     borderWidth: 1, borderColor: colors.border,
   },
-  agendaCardSelected: { borderWidth: 1.5, borderColor: colors.primary },
   agendaHora: { fontWeight: '700', fontSize: 14, color: colors.textDark },
   agendaHoraFin: { fontSize: 11, color: colors.textGray },
   agendaInfo: { justifyContent: 'center' },

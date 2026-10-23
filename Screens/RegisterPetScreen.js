@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { crearMascota } from '../services/mascotaService';
 
 const CLIENT_TABS = [
   { key: 'Inicio', label: 'Inicio', icon: 'home-outline', route: 'ClientDashboard' },
@@ -19,6 +20,26 @@ export default function RegisterPetScreen({ navigation }) {
   const [raza, setRaza] = useState('');
   const [edad, setEdad] = useState('');
   const [notas, setNotas] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  const guardar = async () => {
+    if (!nombre.trim()) {
+      Alert.alert('Campo requerido', 'Ingresa el nombre de tu mascota');
+      return;
+    }
+    try {
+      setGuardando(true);
+      await crearMascota({
+        nombre: nombre.trim(), especie, raza: raza.trim(), edad, notas: notas.trim(),
+      });
+      Alert.alert('Mascota registrada', `${nombre.trim()} se agregó a tu cuenta`);
+      navigation.navigate('ClientDashboard');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -102,7 +123,11 @@ export default function RegisterPetScreen({ navigation }) {
           numberOfLines={4}
         />
 
-        <TouchableOpacity style={styles.saveBtn} onPress={() => navigation.navigate('ClientDashboard')}>
+        <TouchableOpacity
+          style={[styles.saveBtn, guardando && { opacity: 0.6 }]}
+          onPress={guardar}
+          disabled={guardando}
+        >
           <Text style={styles.saveBtnText}>Guardar Mascota</Text>
         </TouchableOpacity>
       </ScrollView>
