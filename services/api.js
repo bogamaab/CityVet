@@ -114,7 +114,9 @@ const rutas = [
       const { correo = '', password, tipo } = body;
       const usuario = db.usuarios.find((u) => u.correo.toLowerCase() === correo.toLowerCase());
       if (!usuario || usuario.password !== password) fallar(401, 'Correo o contraseña incorrectos');
-      if (tipo && usuario.rol !== tipo) fallar(403, `Esta cuenta no tiene acceso como "${tipo}"`);
+      // El admin puede entrar desde cualquier pestaña
+      if (tipo && usuario.rol !== tipo && usuario.rol !== 'admin')
+      fallar(403, `Esta cuenta no tiene acceso como "${tipo}"`);
       return { token: `mock-token-${usuario.id}`, usuario: publico(usuario) };
     },
   },
