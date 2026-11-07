@@ -1,10 +1,10 @@
-# City Vet 🐾
+# City Vet 
 
 Aplicación móvil desarrollada con **React Native** y **Expo** para la gestión integral de servicios veterinarios, permitiendo la administración de citas, perfiles de mascotas, y paneles especializados para clientes, veterinarios y administradores.
 
 ---
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
 Antes de comenzar, asegúrate de tener instalado en tu sistema:
 
@@ -15,7 +15,7 @@ Antes de comenzar, asegúrate de tener instalado en tu sistema:
 
 ---
 
-## 🚀 Instalación
+## Instalación
 
 1. **Clonar el repositorio** (si aún no lo has descargado):
    ```bash
@@ -30,7 +30,7 @@ Antes de comenzar, asegúrate de tener instalado en tu sistema:
 
 ---
 
-## 💻 Instrucciones de Ejecución
+## Instrucciones de Ejecución
 
 Inicia el servidor de desarrollo de Expo con el siguiente comando:
 
@@ -79,7 +79,7 @@ npm start
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```text
 CityVet/
@@ -111,7 +111,7 @@ CityVet/
 
 ---
 
-## 🛠️ Tecnologías Principales
+## Tecnologías Principales
 
 - **[React Native](https://reactnative.dev/)** (v0.86.3)
 - **[Expo](https://expo.dev/)** (SDK ~57.0)
@@ -121,6 +121,6 @@ CityVet/
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](file:///home/ktulug/Projects/CityVet/LICENSE) para más detalles.
