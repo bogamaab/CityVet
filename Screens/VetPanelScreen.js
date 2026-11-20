@@ -20,35 +20,44 @@ export default function VetPanelScreen({ navigation }) {
   const [agenda, setAgenda] = useState([]);
   const [titulo, setTitulo] = useState('');
   const [cargando, setCargando] = useState(true);
+  const [soloHoy, setSoloHoy] = useState(false);
+
+  const cargar = useCallback(async (filtrarHoy = soloHoy) => {
+    try {
+      setCargando(true);
+      const hoyISO = new Date().toISOString().split('T')[0];
+      const respuesta = await obtenerAgenda(filtrarHoy ? hoyISO : undefined);
+      setAgenda(respuesta.citas || []);
+      setTitulo(respuesta.titulo || '');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setCargando(false);
+    }
+  }, [soloHoy]);
 
   useFocusEffect(
     useCallback(() => {
-      const cargar = async () => {
-        try {
-          setCargando(true);
-          const respuesta = await obtenerAgenda();
-          setAgenda(respuesta.citas);
-          setTitulo(respuesta.titulo);
-        } catch (error) {
-          Alert.alert('Error', error.message);
-        } finally {
-          setCargando(false);
-        }
-      };
-      cargar();
-    }, [])
+      cargar(soloHoy);
+    }, [cargar, soloHoy])
   );
+
+  const toggleFiltro = () => {
+    const nuevo = !soloHoy;
+    setSoloHoy(nuevo);
+    cargar(nuevo);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerSmall}>Agenda del Día</Text>
+            <Text style={styles.headerSmall}>Panel de Control</Text>
             <Text style={styles.headerTitle}>{usuario?.nombre}</Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.weekLink}>Semana</Text>
+          <TouchableOpacity onPress={toggleFiltro} style={styles.filterBtn}>
+            <Text style={styles.weekLink}>{soloHoy ? 'Ver todas' : 'Solo hoy'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -61,12 +70,14 @@ export default function VetPanelScreen({ navigation }) {
           )}
 
           {agenda.map((item) => (
-            <View
+            <TouchableOpacity
               key={item.id}
               style={[
                 styles.agendaCard,
                 { borderLeftColor: item.critico ? colors.danger : colors.primary },
               ]}
+              onPress={() => navigation.navigate('PetProfile')}
+              activeOpacity={0.7}
             >
               <View>
                 <Text style={styles.agendaHora}>{item.hora}</Text>
@@ -74,9 +85,12 @@ export default function VetPanelScreen({ navigation }) {
               </View>
               <View style={styles.agendaInfo}>
                 <Text style={styles.agendaMascota}>{item.mascota}</Text>
+                {item.tutor ? (
+                  <Text style={styles.agendaTutor}>Tutor: {item.tutor}</Text>
+                ) : null}
                 <Text style={styles.agendaDetalle}>{item.detalle}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
@@ -96,8 +110,9 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerSmall: { fontSize: 12, color: colors.textGray, marginBottom: 4 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.primary },
-  weekLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  dateText: { fontSize: 13, color: colors.textDark, marginTop: 12, fontWeight: '500' },
+  filterBtn: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: colors.primaryLight, borderRadius: 14 },
+  weekLink: { fontSize: 12, color: colors.primary, fontWeight: '700' },
+  dateText: { fontSize: 13, color: colors.textDark, marginTop: 12, fontWeight: '600' },
   agendaCard: {
     flexDirection: 'row', backgroundColor: colors.white, borderRadius: 10,
     borderLeftWidth: 4, padding: 14, marginBottom: 12, gap: 16,
@@ -105,7 +120,8 @@ const styles = StyleSheet.create({
   },
   agendaHora: { fontWeight: '700', fontSize: 14, color: colors.textDark },
   agendaHoraFin: { fontSize: 11, color: colors.textGray },
-  agendaInfo: { justifyContent: 'center' },
-  agendaMascota: { fontWeight: '700', fontSize: 14, color: colors.textDark },
+  agendaInfo: { flex: 1, justifyContent: 'center' },
+  agendaMascota: { fontWeight: '700', fontSize: 15, color: colors.textDark },
+  agendaTutor: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
   agendaDetalle: { fontSize: 12, color: colors.textGray, marginTop: 2 },
 });
