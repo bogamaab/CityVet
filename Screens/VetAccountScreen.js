@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Switch,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView, Switch, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { useAuth } from '../context/AuthContext';
+import { actualizarPerfil } from '../services/authService';
 
 const VET_TABS = [
   { key: 'Control', label: 'Control', icon: 'grid-outline', route: 'VetPanel' },
@@ -13,18 +15,37 @@ const VET_TABS = [
 ];
 
 export default function VetAccountScreen({ navigation }) {
-  const [nombre, setNombre] = useState('Dr. Santiago Hortua');
-  const [email, setEmail] = useState('sofia.martinez@vetcura.com');
-  const [telefono, setTelefono] = useState('+34 612 345 678');
-  const [direccion, setDireccion] = useState('Calle de la Vía 42, 3ºB - Madrid');
-  const [recordatorios, setRecordatorios] = useState(true);
-  const [alertas, setAlertas] = useState(true);
+  const { usuario, actualizarUsuario, logout } = useAuth();
+
+  const [nombre, setNombre] = useState(usuario?.nombre || '');
+  const [email, setEmail] = useState(usuario?.correo || '');
+  const [telefono, setTelefono] = useState(usuario?.telefono || '');
+  const [direccion, setDireccion] = useState(usuario?.direccion || '');
+  const [recordatorios, setRecordatorios] = useState(usuario?.recordatorios ?? true);
+  const [alertas, setAlertas] = useState(usuario?.alertas ?? true);
+
+  const guardar = async () => {
+    try {
+      const actualizado = await actualizarPerfil({
+        nombre, correo: email, telefono, direccion, recordatorios, alertas,
+      });
+      actualizarUsuario(actualizado);
+      Alert.alert('Perfil actualizado', 'Tus datos se guardaron correctamente');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const cerrarSesion = async () => {
+    await logout();
+    navigation.replace('Login');
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mi Cuenta</Text>
-        <TouchableOpacity style={styles.saveBtn}>
+        <TouchableOpacity style={styles.saveBtn} onPress={guardar}>
           <Text style={styles.saveBtnText}>Guardar</Text>
         </TouchableOpacity>
       </View>
@@ -97,10 +118,7 @@ export default function VetAccountScreen({ navigation }) {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={() => navigation.navigate('Login')}
-        >
+        <TouchableOpacity style={styles.logoutBtn} onPress={cerrarSesion}>
           <Ionicons name="log-out-outline" size={18} color={colors.danger} />
           <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
         </TouchableOpacity>
@@ -150,21 +168,9 @@ const styles = StyleSheet.create({
   prefTitle: { fontSize: 14, fontWeight: '600', color: colors.textDark, marginBottom: 2 },
   prefSubtitle: { fontSize: 12, color: colors.textGray },
   logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginTop: 8,
-    marginBottom: 20,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.danger,
+    borderRadius: 12, paddingVertical: 14, marginTop: 8, marginBottom: 20,
   },
-  logoutBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.danger,
-  },
+  logoutBtnText: { fontSize: 14, fontWeight: '700', color: colors.danger },
 });

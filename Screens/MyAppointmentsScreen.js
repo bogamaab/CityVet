@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  ActivityIndicator, Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { obtenerCitas, cancelarCita } from '../services/citaService';
 
 const CLIENT_TABS = [
   { key: 'Inicio', label: 'Inicio', icon: 'home-outline', route: 'ClientDashboard' },
@@ -11,16 +16,60 @@ const CLIENT_TABS = [
   { key: 'Perfil', label: 'Perfil', icon: 'person-outline', route: 'ClientProfile' },
 ];
 
-const proximas = [
-  { id: '1', mascota: 'Max (Golden Retriever)', servicio: 'Consulta Médica', estado: 'Confirmada', fecha: 'Mañana, 24 Oct • 10:00 AM', doctor: 'Dra. Clara Fuentes' },
-];
-const historial = [
-  { id: '2', mascota: 'Luna (Gato Persa)', servicio: 'Baño y pelaje', estado: 'Completada', fecha: '15 Oct 2024 • 14:30 PM', doctor: 'Dr. Fernando Ruiz' },
-];
+const estiloEstado = (estado) => {
+  if (estado === 'Confirmada') return [styles.badgeWarning, styles.badgeTextWarning];
+  if (estado === 'Cancelada') return [styles.badgeDanger, styles.badgeTextDanger];
+  return [styles.badgeSuccess, styles.badgeTextSuccess];
+};
 
 export default function MyAppointmentsScreen({ navigation }) {
   const [tab, setTab] = useState('proximas');
-  const data = tab === 'proximas' ? proximas : historial;
+  const [data, setData] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  const cargar = async (tipo) => {
+    try {
+      setCargando(true);
+      setData(await obtenerCitas(tipo));
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // Se ejecuta al enfocar la pantalla y cada vez que cambia la pestaña
+  useFocusEffect(
+    useCallback(() => {
+      cargar(tab);
+    }, [tab])
+  );
+
+  const cancelar = (cita) =>
+    Alert.alert('Cancelar cita', `¿Cancelar la cita de ${cita.mascotaNombre}?`, [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelarCita(cita.id);
+            await cargar(tab);
+          } catch (error) {
+            Alert.alert('Error', error.message);
+          }
+        },
+      },
+    ]);
+
+  const reagendar = (c) =>
+    navigation.navigate('SelectDateTime', {
+      citaId: c.id,
+      servicio: c.servicio,
+      servicioId: c.servicioId,
+      mascotaId: c.mascotaId,
+      mascotaNombre: c.mascotaNombre,
+    });
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -45,32 +94,38 @@ export default function MyAppointmentsScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        {data.map((c) => (
-          <View key={c.id} style={styles.card}>
-          <View style={styles.cardTop}>
-          <Text style={styles.petName}>{c.mascota}</Text>
-          <View style={[styles.badge, c.estado === 'Confirmada' ? styles.badgeWarning : styles.badgeSuccess]}>
-          <Text style={[styles.badgeText, c.estado === 'Confirmada' ? styles.badgeTextWarning : styles.badgeTextSuccess]}>
-          {c.estado}
-          </Text>
-          </View>
-          </View>
-          <Text style={styles.serviceText}>{c.servicio}</Text>
-          <Text style={styles.dateText}>{c.fecha}</Text>
-          <Text style={styles.doctorText}>{c.doctor}</Text>
+        {cargando && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
+        {!cargando && data.length === 0 && (
+          <Text style={styles.dateText}>No hay citas para mostrar.</Text>
+        )}
 
-            {tab === 'proximas' && (
-              <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.rescheduleBtn}>
-                  <Text style={styles.rescheduleText}>Reagendar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn}>
-                <Text style={styles.cancelText}>Cancelar</Text>
-              </TouchableOpacity>
+        {data.map((c) => {
+          const [badgeStyle, badgeTextStyle] = estiloEstado(c.estado);
+          return (
+            <View key={c.id} style={styles.card}>
+              <View style={styles.cardTop}>
+                <Text style={styles.petName}>{c.mascota}</Text>
+                <View style={[styles.badge, badgeStyle]}>
+                  <Text style={[styles.badgeText, badgeTextStyle]}>{c.estado}</Text>
+                </View>
               </View>
-            )}
-          </View>
-        ))}
+              <Text style={styles.serviceText}>{c.servicio}</Text>
+              <Text style={styles.dateText}>{c.fecha}</Text>
+              <Text style={styles.doctorText}>{c.doctor}</Text>
+
+              {tab === 'proximas' && (
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity style={styles.rescheduleBtn} onPress={() => reagendar(c)}>
+                    <Text style={styles.rescheduleText}>Reagendar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => cancelar(c)}>
+                    <Text style={styles.cancelText}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          );
+        })}
       </ScrollView>
 
       <BottomTabBar
@@ -98,9 +153,11 @@ const styles = StyleSheet.create({
   badge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   badgeWarning: { backgroundColor: colors.warningLight },
   badgeSuccess: { backgroundColor: colors.successLight },
+  badgeDanger: { backgroundColor: colors.dangerLight },
   badgeText: { fontSize: 11, fontWeight: '700' },
   badgeTextWarning: { color: colors.warning },
   badgeTextSuccess: { color: colors.success },
+  badgeTextDanger: { color: colors.danger },
   serviceText: { color: colors.primary, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   dateText: { fontSize: 12, color: colors.textGray, marginBottom: 2 },
   doctorText: { fontSize: 12, color: colors.textGray, marginBottom: 12 },

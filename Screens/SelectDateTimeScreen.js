@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  ActivityIndicator, Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { obtenerDias, obtenerHorarios, crearCita, reagendarCita } from '../services/citaService';
 
 const CLIENT_TABS = [
   { key: 'Inicio', label: 'Inicio', icon: 'home-outline', route: 'ClientDashboard' },
@@ -11,17 +15,69 @@ const CLIENT_TABS = [
   { key: 'Perfil', label: 'Perfil', icon: 'person-outline', route: 'ClientProfile' },
 ];
 
-const dias = [
-  { dia: 'Lun', numero: 23 }, { dia: 'Mar', numero: 24 }, { dia: 'Mié', numero: 25 },
-  { dia: 'Jue', numero: 26 }, { dia: 'Vie', numero: 27 }, { dia: 'Sáb', numero: 28 },
-];
-
-const horarios = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '15:00', '15:30', '16:00'];
-
 export default function SelectDateTimeScreen({ navigation, route }) {
-  const servicio = route?.params?.servicio || 'Consulta Médica';
-  const [diaSel, setDiaSel] = useState(24);
-  const [horaSel, setHoraSel] = useState('10:00');
+  const {
+    servicio = 'Consulta Médica', servicioId, mascotaId, mascotaNombre, citaId,
+  } = route?.params || {};
+
+  const [dias, setDias] = useState([]);
+  const [horarios, setHorarios] = useState([]);
+  const [diaSel, setDiaSel] = useState(null);   // fecha ISO, ej. "2026-10-23"
+  const [horaSel, setHoraSel] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+
+  // 1) Cargar los próximos días
+  useEffect(() => {
+    const cargarDias = async () => {
+      try {
+        const lista = await obtenerDias();
+        setDias(lista);
+        setDiaSel(lista[0].fecha);
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      }
+    };
+    cargarDias();
+  }, []);
+
+  // 2) Cada vez que cambia el día, cargar los horarios libres
+  useEffect(() => {
+    if (!diaSel) return;
+    const cargarHorarios = async () => {
+      try {
+        setCargando(true);
+        setHoraSel(null);
+        const r = await obtenerHorarios(diaSel, servicioId);
+        setHorarios(r.horarios);
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargarHorarios();
+  }, [diaSel]);
+
+  const confirmar = async () => {
+    if (!horaSel) {
+      Alert.alert('Selecciona un horario', 'Elige una hora disponible');
+      return;
+    }
+    try {
+      setGuardando(true);
+      if (citaId) {
+        await reagendarCita(citaId, diaSel, horaSel);
+      } else {
+        await crearCita({ mascotaId, servicioId, fecha: diaSel, hora: horaSel });
+      }
+      navigation.navigate('MyAppointments');
+    } catch (error) {
+      Alert.alert('No se pudo agendar', error.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -36,25 +92,25 @@ export default function SelectDateTimeScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.infoBar}>
           <View>
-            <Text style={styles.infoLabel}>Mascota: <Text style={styles.infoBold}>Max</Text></Text>
+            <Text style={styles.infoLabel}>Mascota: <Text style={styles.infoBold}>{mascotaNombre}</Text></Text>
             <Text style={styles.infoSub}>{servicio}</Text>
           </View>
           <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
         </View>
 
         <View style={styles.monthRow}>
-          <Text style={styles.monthText}>Octubre 2024</Text>
+          <Text style={styles.monthText}>{dias[0] ? `${dias[0].mes} ${dias[0].anio}` : ''}</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textDark} />
         </View>
 
         <View style={styles.daysRow}>
           {dias.map((d) => {
-            const active = diaSel === d.numero;
+            const active = diaSel === d.fecha;
             return (
               <TouchableOpacity
-                key={d.numero}
+                key={d.fecha}
                 style={[styles.dayBtn, active && styles.dayBtnActive]}
-                onPress={() => setDiaSel(d.numero)}
+                onPress={() => setDiaSel(d.fecha)}
               >
                 <Text style={[styles.dayLabel, active && styles.dayLabelActive]}>{d.dia}</Text>
                 <Text style={[styles.dayNumber, active && styles.dayLabelActive]}>{d.numero}</Text>
@@ -64,23 +120,29 @@ export default function SelectDateTimeScreen({ navigation, route }) {
         </View>
 
         <Text style={styles.sectionTitle}>Horarios Disponibles</Text>
+        {cargando && <ActivityIndicator color={colors.primary} style={{ marginBottom: 12 }} />}
         <View style={styles.timeGrid}>
           {horarios.map((h) => {
-            const active = horaSel === h;
+            const active = horaSel === h.hora;
             return (
               <TouchableOpacity
-                key={h}
-                style={[styles.timeBtn, active && styles.timeBtnActive]}
-                onPress={() => setHoraSel(h)}
+                key={h.hora}
+                disabled={!h.disponible}
+                style={[styles.timeBtn, active && styles.timeBtnActive, !h.disponible && styles.timeBtnDisabled]}
+                onPress={() => setHoraSel(h.hora)}
               >
-                <Text style={[styles.timeText, active && styles.timeTextActive]}>{h}</Text>
+                <Text style={[styles.timeText, active && styles.timeTextActive]}>{h.hora}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <TouchableOpacity style={styles.confirmBtn} onPress={() => navigation.navigate('MyAppointments')}>
-          <Text style={styles.confirmBtnText}>Confirmar Cita</Text>
+        <TouchableOpacity
+          style={[styles.confirmBtn, guardando && { opacity: 0.6 }]}
+          onPress={confirmar}
+          disabled={guardando}
+        >
+          <Text style={styles.confirmBtnText}>{citaId ? 'Reagendar Cita' : 'Confirmar Cita'}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -126,6 +188,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 18, backgroundColor: colors.white,
   },
   timeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  timeBtnDisabled: { opacity: 0.35 },
   timeText: { fontSize: 13, color: colors.textDark, fontWeight: '500' },
   timeTextActive: { color: colors.white },
   confirmBtn: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 20 },

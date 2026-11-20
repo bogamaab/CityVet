@@ -1,20 +1,42 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  ScrollView, SafeAreaView, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
+import { useAuth } from '../context/AuthContext';
 
 export default function CreateAccountScreen({ navigation }) {
+  const { registrar } = useAuth();
   const [userType, setUserType] = useState('cliente');
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [cargando, setCargando] = useState(false);
 
-  const handleCreateAccount = () => {
-    navigation.navigate(userType === 'cliente' ? 'ClientDashboard' : 'VetPanel');
+  const handleCreateAccount = async () => {
+    if (!nombre.trim() || !email.trim() || !password.trim()) {
+      Alert.alert('Campos requeridos', 'Completa nombre, correo y contraseña');
+      return;
+    }
+    try {
+      setCargando(true);
+      const usuario = await registrar({
+        nombre: nombre.trim(),
+        correo: email.trim(),
+        telefono: telefono.trim(),
+        password,
+        rol: userType === 'cliente' ? 'cliente' : 'medico',
+      });
+      navigation.replace(usuario.rol === 'cliente' ? 'ClientDashboard' : 'VetPanel');
+    } catch (error) {
+      Alert.alert('No se pudo crear la cuenta', error.message);
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
@@ -91,11 +113,15 @@ export default function CreateAccountScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateAccount}>
-          <Text style={styles.primaryBtnText}>
-            {userType === 'cliente' ? 'Crear cuenta de cliente' : 'Crear cuenta de veterinaria'}
-          </Text>
-        </TouchableOpacity>
+        {cargando ? (
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
+        ) : (
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateAccount}>
+            <Text style={styles.primaryBtnText}>
+              {userType === 'cliente' ? 'Crear cuenta de cliente' : 'Crear cuenta de veterinaria'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.termsText}>
           Al crear cuenta aceptas los Términos de servicio y el Aviso de privacidad.

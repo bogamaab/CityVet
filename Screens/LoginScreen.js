@@ -1,20 +1,40 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, SafeAreaView,
+  ScrollView, SafeAreaView, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
+  const { login } = useAuth();
   const [userType, setUserType] = useState('cliente');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [cargando, setCargando] = useState(false);
 
-  const handleLogin = () => {
-    navigation.navigate(userType === 'cliente' ? 'ClientDashboard' : 'VetPanel');
+  const entrar = async (correo, clave, tipo) => {
+    if (!correo.trim() || !clave.trim()) {
+      Alert.alert('Campos requeridos', 'Ingrese correo y contraseña');
+      return;
+    }
+    try {
+      setCargando(true);
+      const usuario = await login(correo.trim(), clave, tipo);
+      const destino = { cliente: 'ClientDashboard', medico: 'VetPanel', admin: 'AdminPanel' }[usuario.rol];
+      navigation.replace(destino);
+    } catch (error) {
+      Alert.alert('Error de inicio de sesión', error.message);
+    } finally {
+      setCargando(false);
+    }
   };
+
+  const handleLogin = () => entrar(email, password, userType);
+  // Botones Google/Apple: acceso de administrador para la demo
+  const handleAdmin = () => entrar('admin@vetcare.com', 'admin123', 'admin');
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -70,32 +90,37 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleLogin}>
-          <Text style={styles.primaryBtnText}>Iniciar Sesión</Text>
-        </TouchableOpacity>
+        {cargando ? (
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 24 }} />
+        ) : (
+          <>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleLogin}>
+              <Text style={styles.primaryBtnText}>Iniciar Sesión</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('CreateAccount')}>
-          <Text style={styles.secondaryBtnText}>Crear Cuenta</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('CreateAccount')}>
+              <Text style={styles.secondaryBtnText}>Crear Cuenta</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <Text style={styles.orText}>O ingresar con</Text>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity
-            style={styles.socialBtn}
-            onPress={() => navigation.navigate('AdminPanel')}
-          >
+          <TouchableOpacity style={styles.socialBtn} onPress={handleAdmin}>
             <Ionicons name="logo-google" size={18} color={colors.textDark} />
             <Text style={styles.socialText}>Google</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.socialBtn}
-            onPress={() => navigation.navigate('AdminPanel')}
-          >
+          <TouchableOpacity style={styles.socialBtn} onPress={handleAdmin}>
             <Ionicons name="logo-apple" size={18} color={colors.textDark} />
             <Text style={styles.socialText}>Apple</Text>
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.demoText}>
+          Demo cliente: maria.gonzalez@vetcare.com / 123456{'\n'}
+          Demo médico: fernando.ruiz@vetcare.com / 123456
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -142,4 +167,5 @@ const styles = StyleSheet.create({
     borderRadius: 10, paddingVertical: 12,
   },
   socialText: { fontSize: 14, fontWeight: '500', color: colors.textDark },
+  demoText: { textAlign: 'center', color: colors.textLightGray, fontSize: 11, marginTop: 24, lineHeight: 16 },
 });

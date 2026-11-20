@@ -1,8 +1,14 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  ActivityIndicator, Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { useAuth } from '../context/AuthContext';
+import { obtenerMascotas } from '../services/mascotaService';
 
 const CLIENT_TABS = [
   { key: 'Inicio', label: 'Inicio', icon: 'home-outline', route: 'ClientDashboard' },
@@ -11,22 +17,46 @@ const CLIENT_TABS = [
   { key: 'Perfil', label: 'Perfil', icon: 'person-outline', route: 'ClientProfile' },
 ];
 
-const mascotas = [
-  { id: '1', nombre: 'Max', raza: 'Golden Retriever', cita: 'Cita: Mañana 10:00' },
-  { id: '2', nombre: 'Luna', raza: 'Gato Persa', cita: 'Sin citas próximas' },
-];
-
 export default function ClientDashboardScreen({ navigation }) {
+  const { usuario } = useAuth();
+  const [mascotas, setMascotas] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      const cargar = async () => {
+        try {
+          setCargando(true);
+          setMascotas(await obtenerMascotas());
+        } catch (error) {
+          Alert.alert('Error', error.message);
+        } finally {
+          setCargando(false);
+        }
+      };
+      cargar();
+    }, [])
+  );
+
+  const agendar = (mascota) => {
+    if (!mascota) {
+      Alert.alert('Sin mascotas', 'Primero registra una mascota.');
+      navigation.navigate('RegisterPet');
+      return;
+    }
+    navigation.navigate('SelectService', { mascota });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.greeting}>¡Hola, María!</Text>
+        <Text style={styles.greeting}>¡Hola, {usuario?.nombre?.split(' ')[0]}!</Text>
         <Text style={styles.subGreeting}>¿Cómo están tus mascotas?</Text>
 
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>Reserva una cita hoy mismo</Text>
           <Text style={styles.heroSubtitle}>Elige especialidad, doctor y horario en minutos.</Text>
-          <TouchableOpacity style={styles.heroBtn} onPress={() => navigation.navigate('SelectService')}>
+          <TouchableOpacity style={styles.heroBtn} onPress={() => agendar(mascotas[0])}>
             <Text style={styles.heroBtnText}>Agendar Cita</Text>
             <Ionicons name="arrow-forward" size={16} color={colors.primary} />
           </TouchableOpacity>
@@ -39,13 +69,18 @@ export default function ClientDashboardScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {cargando && <ActivityIndicator color={colors.primary} />}
+        {!cargando && mascotas.length === 0 && (
+          <Text style={styles.petBreed}>Aún no tienes mascotas registradas.</Text>
+        )}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {mascotas.map((m) => (
-            <View key={m.id} style={styles.petCard}>
+            <TouchableOpacity key={m.id} style={styles.petCard} onPress={() => agendar(m)}>
               <Text style={styles.petName}>{m.nombre}</Text>
               <Text style={styles.petBreed}>{m.raza}</Text>
               <Text style={styles.petAppointment}>{m.cita}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 

@@ -1,8 +1,13 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView,
+  ActivityIndicator, Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../Theme/colors';
 import BottomTabBar from '../components/BottomTabBar';
+import { obtenerServicios } from '../services/citaService';
+import { obtenerMascotas } from '../services/mascotaService';
 
 const CLIENT_TABS = [
   { key: 'Inicio', label: 'Inicio', icon: 'home-outline', route: 'ClientDashboard' },
@@ -11,16 +16,43 @@ const CLIENT_TABS = [
   { key: 'Perfil', label: 'Perfil', icon: 'person-outline', route: 'ClientProfile' },
 ];
 
-const services = [
-  { id: '1', nombre: 'Consulta médica', detalle: '30 min', precio: '$25 - $40' },
-  { id: '2', nombre: 'Urgencias', detalle: 'Atención inmediata', precio: '$80+', highlight: true },
-  { id: '3', nombre: 'Baño y pelaje', detalle: '1 hora', precio: '$15 - $30' },
-  { id: '4', nombre: 'Cirugías', detalle: '1 - 3 horas', precio: 'Sujeto a evaluación' },
-  { id: '5', nombre: 'Peluquería canina', detalle: '45 min', precio: '$20 - $35' },
-  { id: '6', nombre: 'Exámenes médicos', detalle: '20 min', precio: '$30 - $80' },
-];
+export default function SelectServiceScreen({ navigation, route }) {
+  const [services, setServices] = useState([]);
+  const [mascota, setMascota] = useState(route?.params?.mascota || null);
+  const [cargando, setCargando] = useState(true);
 
-export default function SelectServiceScreen({ navigation }) {
+  useEffect(() => {
+    const cargar = async () => {
+      try {
+        setServices(await obtenerServicios());
+        // Si no llegó una mascota por parámetro, usa la primera del cliente
+        if (!mascota) {
+          const lista = await obtenerMascotas();
+          setMascota(lista[0] || null);
+        }
+      } catch (error) {
+        Alert.alert('Error', error.message);
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargar();
+  }, []);
+
+  const elegir = (s) => {
+    if (!mascota) {
+      Alert.alert('Sin mascotas', 'Primero registra una mascota.');
+      navigation.navigate('RegisterPet');
+      return;
+    }
+    navigation.navigate('SelectDateTime', {
+      servicio: s.nombre,
+      servicioId: s.id,
+      mascotaId: mascota.id,
+      mascotaNombre: mascota.nombre,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -35,16 +67,18 @@ export default function SelectServiceScreen({ navigation }) {
         <View style={styles.petBar}>
           <Text style={styles.petBarLabel}>Agendando para:</Text>
           <View style={styles.petBadge}>
-            <Text style={styles.petBadgeText}>Max</Text>
+            <Text style={styles.petBadgeText}>{mascota?.nombre || '—'}</Text>
           </View>
         </View>
+
+        {cargando && <ActivityIndicator color={colors.primary} />}
 
         <View style={styles.grid}>
           {services.map((s) => (
             <TouchableOpacity
               key={s.id}
               style={[styles.card, s.highlight && styles.cardHighlight]}
-              onPress={() => navigation.navigate('SelectDateTime', { servicio: s.nombre })}
+              onPress={() => elegir(s)}
             >
               <Text style={[styles.cardTitle, s.highlight && styles.cardTitleHighlight]}>{s.nombre}</Text>
               <Text style={[styles.cardDetail, s.highlight && styles.cardDetailHighlight]}>{s.detalle}</Text>
